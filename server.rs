@@ -7,24 +7,28 @@ use std::sync::{Arc, Mutex, RwLock};
 fn handle_client(mut stream: i32, mut stream_list: Arc<Mutex<HashMap<i32,TcpStream>>>) {
     
     let mut data = [0 as u8; 50]; // using 50 byte buffer
+    let mut my_stream = {
+        let mut ls = stream_list.lock().unwrap();
+        (*ls).get(&stream).unwrap().try_clone().unwrap()
+    };
     //let mut i = 0;
-   /*while match stream.read(&mut data) {
+    while match my_stream.read(&mut data) {
         Ok(size) => {
-            // echo everything!
-            stream.write(&data[0..size]).unwrap();
-           /* if i==0{
-                println!("{}", String::from_utf8_lossy(&data[..]));
-                i=i+1;
-            }*/
-            
+            for (key, mut val) in stream_list.lock().unwrap().iter(){
+                println!("key: {} val: {:?}", key, val);
+                if *key != stream {
+                    val.write(&data[0..size]).unwrap();
+                    //println!("{}", String::from_utf8_lossy(&data[..]));
+                }
+            } 
             true
         },
         Err(_) => {
-            println!("An error occurred, terminating connection with {}", stream.peer_addr().unwrap());
-            stream.shutdown(Shutdown::Both).unwrap();
+            println!("An error occurred, terminating connection with {}", my_stream.peer_addr().unwrap());
+            my_stream.shutdown(Shutdown::Both).unwrap();
             false
         }
-    } {}*/
+    } {}
     
 }
 
@@ -46,13 +50,13 @@ fn main() {
                     i,
                     stream,
                 );
-                i = i+1;
                 
                 let replies_stream_clone = replies_stream.clone();
                 thread::spawn(move|| {
                     // connection succeeded
                     handle_client(i, replies_stream_clone)
                 });
+                i = i+1;
             }
             Err(e) => {
                 println!("Error: {}", e);
