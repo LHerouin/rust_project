@@ -2,13 +2,33 @@ use std::thread;
 use std::net::{TcpListener, TcpStream, Shutdown};
 use std::io::{Read, Write};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
+use std::net::{IpAddr};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
-fn handle_client(mut stream: i32, mut stream_list: Arc<Mutex<HashMap<i32,TcpStream>>>) {
+pub struct Server {
+    id_stream: i32,
+    server_name: String,
+    port: i32,
+    address_ip: String
+}
+
+impl Server {
+    pub fn new(id_stream: i32, server_name:String, port: i32, address_ip: String) -> Self {
+        Server {
+            id_stream: id_stream,
+            server_name: server_name,
+            port: port,
+            address_ip: address_ip
+        }
+    }
+}
+
+fn handle_client(stream: i32, stream_list: Arc<Mutex<HashMap<i32,TcpStream>>>) {
     
     let mut data = [0 as u8; 50]; // using 50 byte buffer
     let mut my_stream = {
-        let mut ls = stream_list.lock().unwrap();
+        let ls = stream_list.lock().unwrap();
         (*ls).get(&stream).unwrap().try_clone().unwrap()
     };
     //let mut i = 0;
@@ -18,7 +38,6 @@ fn handle_client(mut stream: i32, mut stream_list: Arc<Mutex<HashMap<i32,TcpStre
                 println!("key: {} val: {:?}", key, val);
                 if *key != stream {
                     val.write(&data[0..size]).unwrap();
-                    //println!("{}", String::from_utf8_lossy(&data[..]));
                 }
             } 
             true
@@ -34,10 +53,16 @@ fn handle_client(mut stream: i32, mut stream_list: Arc<Mutex<HashMap<i32,TcpStre
 
 
 fn main() {
-    let listener = TcpListener::bind("0.0.0.0:3333").unwrap();
-    let mut streamHash:HashMap<i32,TcpStream> = HashMap::new(); 
-    let mut replies_stream = Arc::new(Mutex::new(streamHash));
-    let mut i = 0;
+    let server = Server::new(0, "My Server".to_string(), 3333, "0.0.0.0".to_string());
+
+    let tcp_stream = format!("{}:{}", server.address_ip, server.port);
+
+
+    let listener = TcpListener::bind(tcp_stream).unwrap();
+    let streamHash:HashMap<i32,TcpStream> = HashMap::new(); 
+    let replies_stream = Arc::new(Mutex::new(streamHash));
+    let mut id = server.id_stream;
+
     // accept connections and process them, spawning a new thread for each one
     println!("Server listening on port 3333");
     for stream in listener.incoming() {
@@ -47,16 +72,16 @@ fn main() {
                 println!("New connection: {}", &stream.peer_addr().unwrap());
                 let mut rs = replies_stream.lock().unwrap();
                 (*rs).insert(
-                    i,
+                    id,
                     stream,
                 );
                 
                 let replies_stream_clone = replies_stream.clone();
                 thread::spawn(move|| {
                     // connection succeeded
-                    handle_client(i, replies_stream_clone)
+                    handle_client(id, replies_stream_clone)
                 });
-                i = i+1;
+                id = id+1;
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -66,4 +91,30 @@ fn main() {
     }
     // close the socket server
     drop(listener);
+}
+
+
+#[cfg(test)] 
+mod tests {
+    use super::*;
+
+
+    #[test]
+    fn test_server_name() {
+        
+        let server = Server::new(0, "My Server".to_string(), 3333, "0.0.0.0".to_string());
+       assert_eq!(server.server_name,"My Server");
+    }        
+
+    #[test]
+    fn test_server_tcp_listener() {
+        
+        let server = Server::new(0, "My Server".to_string(), 3333, "0.0.0.0".to_string());
+        let tcp_stream = format!("{}:{}", server.address_ip, server.port);
+        let stream = TcpListener::bind(tcp_stream).unwrap();
+        assert_eq!(stream.local_addr().unwrap(),
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 3333)));
+    }
+
+
 }
