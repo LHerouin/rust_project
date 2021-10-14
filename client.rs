@@ -96,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn test_client_tcp_connect() {
+    fn test_client_tcp_connect() { // il faut lancer le server.exe pour que ça fonctionne
         let msg = b"Hello server!";
         let client = Client::new(*msg, 3333, "127.0.0.1".to_string());
         let tcp_stream = format!("{}:{}", client.address_ip, client.port);
