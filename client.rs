@@ -45,10 +45,8 @@ print!("{}", tcp_stream);
    match TcpStream::connect(tcp_stream) {
         Ok(mut stream) => {
 
-            let msg = b"Hello server!";
-
-            stream.write(msg).unwrap();
-            println!("Sent Hello server, awaiting reply...");
+            stream.write(&client.msg).unwrap();
+            println!(" Sent Hello server, awaiting reply...");
 
             let mut data = [0 as u8; 13]; // using 6 byte buffer
             let mut validate = false;
