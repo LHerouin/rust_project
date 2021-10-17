@@ -5,9 +5,6 @@ use std::net::{TcpStream};
 use std::io::{Read, Write};
 use std::str::from_utf8;
 
-use std::net::{IpAddr, Ipv4Addr};
-
-
 pub enum Mode {
     Reconnect,
     KeepAlive,
@@ -45,19 +42,19 @@ fn main() {
     let tcp_stream = format!("{}:{}", client.address_ip, client.port);
 
 print!("{}", tcp_stream);
-   match TcpStream::connect(tcp_stream) {
+   match TcpStream::connect(tcp_stream) { // accepting a connection on a TcpListener(server)
         Ok(mut stream) => {
 
-            stream.write(&client.msg).unwrap();
-            println!(" Sent Hello server, awaiting reply...");
+            stream.write(&client.msg).unwrap();// write data on stream
+            println!(" Sent Hello client, awaiting reply...");
 
-            let mut data = [0 as u8; 24]; // using 6 byte buffer
+            let mut data = [0 as u8; 24]; // using 6 byte buffer (number of bytes we need to read)
             let mut validate = false;
-            while match stream.read_exact(&mut data) {
+            while match stream.read_exact(&mut data) { //read the exact number of bytes required
                 Ok(_) => {
                     if &data == base64msg {
                         println!("Reply is ok!");
-                        println!("{:?}", mc.decrypt_base64_to_string(from_utf8(&data).unwrap()).unwrap());
+                        println!("{:?}", mc.decrypt_base64_to_string(from_utf8(&data).unwrap()).unwrap());// "Hello server!" (avec encodage utf8 + chiffrement)
                         validate = true;
                         
                     } else if validate {
@@ -66,13 +63,13 @@ print!("{}", tcp_stream);
                     }
                     true
                 },
-                Err(e) => {
+                Err(e) => { //error
                     println!("Failed to receive data: {}", e);
                     false
                 }
             }{}
         },
-        Err(e) => {
+        Err(e) => { //error 
             println!("Failed to connect: {}", e);
         }
     }
@@ -83,28 +80,32 @@ print!("{}", tcp_stream);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+
     #[test]
     fn test_client_port() {
-        let msg = b"Hello server!";
-        let base64 = mc.encrypt_str_to_base64(msg);
-        let client = Client::new(*base64, 3333, "localhost".to_string());
+        let mc = new_magic_crypt!("magickey", 256);
+        //let msg = b"Hello client!";
+        let base64msg = b"Twm+JdcGfbYu7vqSi/gXNA==";
+        //let base64 = mc.encrypt_str_to_base64(&msg);
+        let client = Client::new(*base64msg, 3333, "localhost".to_string());
         assert_eq!(client.port, 3333);
     }
 
     #[test]
     #[should_panic]
     fn test_client_address_ip() {
-        let msg = b"Hello server!";
-        let base64 = mc.encrypt_str_to_base64(msg);
-        let client = Client::new(*base64, 3333, "localhost".to_string());
+        let mc = new_magic_crypt!("magickey", 256);
+        let base64msg = b"Twm+JdcGfbYu7vqSi/gXNA==";
+        let client = Client::new(*base64msg, 3333, "localhost".to_string());
         assert_eq!(client.address_ip, "3333");
     }
 
     #[test]
-    fn test_client_tcp_connect() { // il faut lancer le server.exe pour que ça fonctionne
-        let msg = b"Hello server!";
-        let base64 = mc.encrypt_str_to_base64(msg);
-        let client = Client::new(*base64, 3333, "127.0.0.1".to_string());
+    fn test_client_tcp_connect() { // il faut lancer le server (cargo run) pour que ça fonctionne
+        //let msg = b"Hello client!";
+        let base64msg = b"Twm+JdcGfbYu7vqSi/gXNA==";
+        let client = Client::new(*base64msg, 3333, "127.0.0.1".to_string());
         let tcp_stream = format!("{}:{}", client.address_ip, client.port);
 
         let stream = TcpStream::connect(tcp_stream).expect("Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée.");
