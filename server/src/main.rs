@@ -6,8 +6,6 @@ use std::net::{TcpListener, TcpStream, Shutdown};
 use std::io::{Read, Write};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::net::{IpAddr};
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 pub struct Server {
     id_stream: i32,
@@ -31,11 +29,11 @@ fn handle_client(stream: i32, stream_list: Arc<Mutex<HashMap<i32,TcpStream>>>) {
     
     let mut data = [0 as u8; 50]; // using 50 byte buffer
     let mut my_stream = {
-        let ls = stream_list.lock().unwrap();
+        let ls = stream_list.lock().unwrap(); // result and if there was an error stop the program
         (*ls).get(&stream).unwrap().try_clone().unwrap()
     };
     //let mut i = 0;
-    while match my_stream.read(&mut data) {
+    while match my_stream.read(&mut data) { // read the current stream 
         Ok(size) => {
             for (key, mut val) in stream_list.lock().unwrap().iter(){
                 println!("key: {} val: {:?}", key, val);
@@ -45,7 +43,7 @@ fn handle_client(stream: i32, stream_list: Arc<Mutex<HashMap<i32,TcpStream>>>) {
             } 
             true
         },
-        Err(_) => {
+        Err(_) => { // Error
             println!("An error occurred, terminating connection with {}", my_stream.peer_addr().unwrap());
             my_stream.shutdown(Shutdown::Both).unwrap();
             false
@@ -62,8 +60,8 @@ fn main() {
 
 
     let listener = TcpListener::bind(tcp_stream).unwrap();
-    let streamHash:HashMap<i32,TcpStream> = HashMap::new(); 
-    let replies_stream = Arc::new(Mutex::new(streamHash));
+    let stream_hash:HashMap<i32,TcpStream> = HashMap::new(); 
+    let replies_stream = Arc::new(Mutex::new(stream_hash));
     let mut id = server.id_stream;
 
     // accept connections and process them, spawning a new thread for each one
@@ -99,6 +97,8 @@ fn main() {
 
 #[cfg(test)] 
 mod tests {
+    use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+
     use super::*;
 
 
